@@ -29,7 +29,6 @@
 *  allowDatabaseDelete: true, // Switch on/off deletion of entries. Will be ignored if allowEdit = false
 *  allowAdd: true, // switch on/off the creation of new entries
 *  direction: 'ltr' // Sets the writing direction for Outputs and Inputs
-*  animSpeed: 500 // Sets the animation speed for effects
 *  autocompleteOptions: {}, // Setting Options for the jquery UI Autocomplete (http://jqueryui.com/demos/autocomplete/)
 *  breakKeyCodes: [ 13, 44 ], // Sets the characters to break on to parse the tags (defaults: return, comma)
 *  checkNewEntriesCaseSensitive: false, // If there is a new Entry, it is checked against the autocompletion list. This Flag controlls if the check is (in-)casesensitive
@@ -64,7 +63,6 @@
 			allowDatabaseDelete: true,
 			allowAdd: true,
 			direction: 'ltr',
-			animSpeed: 500,
 			autocompleteOptions: {
 				select: function( event, ui ) {
 					$(this).val(ui.item.value).trigger('transformToTag', [ui.item.id]);
@@ -159,11 +157,11 @@
 			// put an input field at the End
 			// Put an empty element at the end
 			html = '<li class="tagedit-listelement tagedit-listelement-new">';
-			html += '<input type="text" name="'+baseName+'[]" value="" id="tagedit-input" disabled="disabled" class="tagedit-input-disabled" dir="'+options.direction+'"/>';
+			html += '<input type="text" name="'+baseName+'[]" value="" disabled="disabled" class="tagedit-input tagedit-input-disabled" dir="'+options.direction+'"/>';
 			html += '</li>';
 			html += '</ul>';
 
-			$elements.append(html).find('#tagedit-input').each(function() { // Set function on the input
+			$elements.append(html).find('.tagedit-input').each(function() { // Set function on the input
 				$(this).autoGrowInput({comfortZone: 15, minWidth: 15, maxWidth: 20000});
 
 				// Event is triggert in case of choosing an item from the autocomplete, or finish the input
@@ -212,8 +210,7 @@
 						case 8: // BACKSPACE
 							if($(this).val().length == 0) {
 								// delete Last Tag
-								var elementToRemove = $elements.find('li.tagedit-listelement-old').last();
-								elementToRemove.fadeOut(options.animSpeed, function() {elementToRemove.remove();})
+								$elements.find('li.tagedit-listelement-old').last().remove();
 								event.preventDefault();
 								return false;
 							}
@@ -263,31 +260,28 @@
 				if(options.autocompleteOptions.source != false) {
 					$(this).autocomplete(options.autocompleteOptions);
 				}
-			})
-				.end()
-				.click(function(event) {
-					switch(event.target.tagName) {
-						case 'A':
-							$(event.target).parent().fadeOut(options.animSpeed, function() {
-								$(event.target).parent().remove();
-								});
-							break;
-						case 'INPUT':
-						case 'SPAN':
-						case 'LI':
-							if($(event.target).hasClass('tagedit-listelement-deleted') == false &&
-							$(event.target).parent('li').hasClass('tagedit-listelement-deleted') == false) {
-								// Don't edit an deleted Items
-								return doEdit(event);
-							}
-						default:
-							$(this).find('#tagedit-input')
-								.removeAttr('disabled')
-								.removeClass('tagedit-input-disabled')
-								.focus();
-					}
-					return false;
-				})
+			}).end().click(function(event) {
+				switch(event.target.tagName) {
+					case 'A':
+						$(event.target).parent().remove();
+						$(this).find('.tagedit-input').click();
+						break;
+					case 'INPUT':
+					case 'SPAN':
+					case 'LI':
+						if($(event.target).hasClass('tagedit-listelement-deleted') == false &&
+						$(event.target).parent('li').hasClass('tagedit-listelement-deleted') == false) {
+							// Don't edit an deleted Items
+							return doEdit(event);
+						}
+					default:
+						$(this).find('.tagedit-input')
+							.removeAttr('disabled')
+							.removeClass('tagedit-input-disabled')
+							.focus();
+				}
+				return false;
+			});
 		}
 
 		/**
