@@ -41,6 +41,10 @@
 *      deletedElementTitle: 'This Element will be deleted.',
 *      breakEditLinkTitle: 'Cancel'
 *  }
+*
+*  beforeSave:
+*   callback triggered when a new tag is being created, it receives the tag value as a parameter and should return
+*   a tag value as a result, if an empty string (or a coerced false value) is returned then the tag will not be created.
 */
 
 (function($) {
@@ -77,6 +81,10 @@
 				deletedElementTitle: 'This Element will be deleted.',
 				breakEditLinkTitle: 'Cancel',
                 forceDeleteConfirmation: 'There are more records using this tag, are you sure do you want to remove it?'
+			},
+
+			beforeSave: function(tag) {
+				return tag;
 			}
 		}, options || {});
 
@@ -96,11 +104,11 @@
 			options.direction = this.attr('dir');
 		}
 
-		var elements = this;
+		var $elements = this;
 
 		var baseNameRegexp = new RegExp("^(.*)\\[([0-9]*?("+options.deletedPostfix+"|"+options.addedPostfix+")?)?\]$", "i");
 
-		var baseName = elements.eq(0).attr('name').match(baseNameRegexp);
+		var baseName = $elements.eq(0).attr('name').match(baseNameRegexp);
 		if(baseName && baseName.length == 4) {
 			baseName = baseName[1];
 		}
@@ -120,7 +128,7 @@
 		function inputsToList() {
 			var html = '<ul class="tagedit-list '+options.additionalListClass+'">';
 
-			elements.each(function() {
+			$elements.each(function() {
 				var element_name = $(this).attr('name').match(baseNameRegexp);
 				if(element_name && element_name.length == 4 && (options.deleteEmptyItems == false || $(this).val().length > 0)) {
 					if(element_name[1].length > 0) {
@@ -136,14 +144,14 @@
 			});
 
 			// replace Elements with the list and save the list in the local variable elements
-			elements.last().after(html)
-			var newList = elements.last().next();
-			elements.remove();
-			elements = newList;
+			$elements.last().after(html)
+			var newList = $elements.last().next();
+			$elements.remove();
+			$elements = newList;
 
 			// Check if some of the elementshav to be marked as deleted
 			if(options.deletedPostfix.length > 0) {
-				elements.find('input[name$="'+options.deletedPostfix+'\]"]').each(function() {
+				$elements.find('input[name$="'+options.deletedPostfix+'\]"]').each(function() {
 					markAsDeleted($(this).parent());
 				});
 			}
@@ -155,15 +163,14 @@
 			html += '</li>';
 			html += '</ul>';
 
-			elements
+			$elements
 				.append(html)
 				// Set function on the input
-				.find('#tagedit-input')
-					.each(function() {
+				.find('#tagedit-input').each(function() {
 						$(this).autoGrowInput({comfortZone: 15, minWidth: 15, maxWidth: 20000});
 
 						// Event is triggert in case of choosing an item from the autocomplete, or finish the input
-						$(this).bind('transformToTag', function(event, id) {
+						$(this).on('transformToTag', function(event, id) {
 							var oldValue = (typeof id != 'undefined' && (id.length > 0 || id > 0));
 
 							var checkAutocomplete = oldValue == true? false : true;
@@ -177,15 +184,18 @@
 								}
 
 								if(options.allowAdd == true || oldValue) {
-									// Make a new tag in front the input
-									html = '<li class="tagedit-listelement tagedit-listelement-old">';
-									html += '<span dir="'+options.direction+'">' + $(this).val() + '</span>';
-									var name = oldValue? baseName + '['+id+options.addedPostfix+']' : baseName + '[]';
-									html += '<input type="hidden" name="'+name+'" value="'+$(this).val()+'" />';
-									html += '<a class="tagedit-close" title="'+options.texts.removeLinkTitle+'">x</a>';
-									html += '</li>';
+									var newTagValue = options.beforeSave(this.value);
+									if (newTagValue) {
+										// Make a new tag in front the input
+										html = '<li class="tagedit-listelement tagedit-listelement-old">';
+										html += '<span dir="' + options.direction + '">' + newTagValue + '</span>';
+										var name = oldValue ? baseName + '[' + id + options.addedPostfix + ']' : baseName + '[]';
+										html += '<input type="hidden" name="' + name + '" value="' + newTagValue + '" />';
+										html += '<a class="tagedit-close" title="' + options.texts.removeLinkTitle + '">x</a>';
+										html += '</li>';
 
-									$(this).parent().before(html);
+										$(this.parentNode).before(html);
+									}
 								}
 							}
 							$(this).val('');
@@ -203,7 +213,7 @@
 								case 8: // BACKSPACE
 									if($(this).val().length == 0) {
 										// delete Last Tag
-										var elementToRemove = elements.find('li.tagedit-listelement-old').last();
+										var elementToRemove = $elements.find('li.tagedit-listelement-old').last();
 										elementToRemove.fadeOut(options.animSpeed, function() {elementToRemove.remove();})
 										event.preventDefault();
 										return false;
@@ -230,7 +240,7 @@
 							}
 							return true;
 						})
-						.bind('paste', function(e){
+						.on('paste', function(e){
 							var that = $(this);
 							if (e.type == 'paste'){
 								setTimeout(function(){
@@ -300,7 +310,7 @@
 			var closeTimer = null;
 
 			// Event that is fired if the User finishes the edit of a tag
-			element.bind('finishEdit', function(event, doReset) {
+			element.on('finishEdit', function(event, doReset) {
 				window.clearTimeout(closeTimer);
 
 				var textfield = $(this).find(':text');
@@ -313,7 +323,7 @@
 
 				textfield.remove();
 				$(this).find('a.tagedit-save, a.tagedit-break, a.tagedit-delete').remove(); // Workaround. This normaly has to be done by autogrow Plugin
-				$(this).removeClass('tagedit-listelement-edit').unbind('finishEdit');
+				$(this).removeClass('tagedit-listelement-edit').off('finishEdit');
 				return false;
 			});
 
@@ -404,19 +414,16 @@
             var checkResult = false;
 
             $.ajax({
-                async   : false,
-                url     : options.checkToDeleteURL,
+                url: options.checkToDeleteURL,
                 dataType: 'json',
-                type    : 'POST',
-                data    : { 'tagId' : tagId},
-                complete: function (XMLHttpRequest, textStatus) {
-
-                    // Expected JSON Object: { "success": Boolean, "allowDelete": Boolean}
-                    var result = $.parseJSON(XMLHttpRequest.responseText);
-                    if(result.success === true){
-                        checkResult = result.allowDelete;
-                    }
-                }
+                type: 'POST',
+                data: {tagId : tagId},
+            }).done(function(data, textStatus, XMLHttpRequest) {
+				// Expected JSON Object: { "success": Boolean, "allowDelete": Boolean}
+	            var result = $.parseJSON(XMLHttpRequest.responseText);
+	            if(result.success === true){
+		            checkResult = result.allowDelete;
+	            }
             });
 
             return checkResult;
@@ -450,11 +457,11 @@
 		function isNew(value, checkAutocomplete) {
             checkAutocomplete = typeof checkAutocomplete == 'undefined'? false : checkAutocomplete;
 			var autoCompleteId = null;
-            
+
             var compareValue = options.checkNewEntriesCaseSensitive == true? value : value.toLowerCase();
 
 			var isNew = true;
-			elements.find('li.tagedit-listelement-old input:hidden').each(function() {
+			$elements.find('li.tagedit-listelement-old input:hidden').each(function() {
                 var elementValue = options.checkNewEntriesCaseSensitive == true? $(this).val() : $(this).val().toLowerCase();
 				if(elementValue == compareValue) {
 					isNew = false;
@@ -479,15 +486,13 @@
 					}
 					autocompleteURL += 'term=' + value;
 					$.ajax({
-						async: false,
 						url: autocompleteURL,
-						dataType: 'json',
-						complete: function (XMLHttpRequest, textStatus) {
-							result = $.parseJSON(XMLHttpRequest.responseText);
-						}
+						dataType: 'json'
+					}).done(function(data, textStatus, XMLHttpRequest) {
+						result = $.parseJSON(XMLHttpRequest.responseText);
 					});
 				}
-                
+
 				// If there is an entry for that already in the autocomplete, don't use it (Check could be case sensitive or not)
 				for (var i = 0; i < result.length; i++) {
                     var resultValue = result[i].label? result[i].label : result[i];
@@ -500,7 +505,7 @@
 				}
 			}
 
-			return new Array(isNew, autoCompleteId);
+			return [isNew, autoCompleteId];
 		}
 	}
 })(jQuery);
