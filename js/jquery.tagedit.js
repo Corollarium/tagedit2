@@ -42,6 +42,12 @@
 *  beforeSave:
 *   callback triggered when a new tag is being created, it receives the tag value as a parameter and should return
 *   a tag value as a result, if an empty string (or a coerced false value) is returned then the tag will not be created.
+*
+* Events:
+ *
+ *  transformToTag: triggered during the process of creation of a new tag (or when you select one from the autocomplete)
+ *  tageditAppended: triggered when a new tag is added to the list, you have access to the following params:
+  *   - li: the list
 */
 
 (function($) {
@@ -88,16 +94,16 @@
 		}
 
 		// Set the direction of the inputs
-		var direction= this.attr('dir');
+		var direction = this.attr('dir');
 		if(direction && direction.length > 0) {
 			options.direction = this.attr('dir');
 		}
 
-		var $elements = this;
+		var $originalInput = this;
 
 		var baseNameRegexp = new RegExp("^(.*)\\[([0-9]*?("+options.deletedPostfix+"|"+options.addedPostfix+")?)?\]$", "i");
 
-		var baseName = $elements.eq(0).attr('name').match(baseNameRegexp);
+		var baseName = $originalInput.eq(0).attr('name').match(baseNameRegexp);
 		if(baseName && baseName.length == 4) {
 			baseName = baseName[1];
 		}
@@ -107,40 +113,40 @@
 			return;
 		}
 
-		// init elements
-		inputsToList();
+		// will be created in the following auto-executable function (inputsToList)
+		var $tageditListUl = $();
 
 		/**
-		* Creates the tageditinput from a list of textinputs
-		*
-		*/
-		function inputsToList() {
-			var html = '<ul class="tagedit-list '+options.additionalListClass+'">';
+		 * Init elements (auto called)
+		 * Creates the tageditinput from a list of textinputs
+		 */
+		(function inputsToList() {
+			var html = '<ul class="tagedit-list ' + options.additionalListClass + '">';
 
-			$elements.each(function() {
+			$originalInput.each(function() {
 				var element_name = $(this).attr('name').match(baseNameRegexp);
 				if(element_name && element_name.length == 4 && (options.deleteEmptyItems == false || $(this).val().length > 0)) {
 					if(element_name[1].length > 0) {
 						var elementId = typeof element_name[2] != 'undefined'? element_name[2]: '';
+						var value = this.value;
 
 						html += '<li class="tagedit-listelement tagedit-listelement-old">';
-						html += '<span dir="'+options.direction+'">' + $(this).val() + '</span>';
-						html += '<input type="hidden" name="'+baseName+'['+elementId+']" value="'+$(this).val()+'" />';
-						html += '<a class="tagedit-close" title="'+options.texts.removeLinkTitle+'">x</a>';
+						html += '<span dir="'+options.direction+'">' + value + '</span>';
+						html += '<input type="hidden" name="'+baseName+'['+elementId+']" value="' + value + '" />';
+						html += '<a class="tagedit-close" title="' + options.texts.removeLinkTitle + '">x</a>';
 						html += '</li>';
 					}
 				}
 			});
 
 			// replace Elements with the list and save the list in the local variable elements
-			$elements.last().after(html)
-			var newList = $elements.last().next();
-			$elements.remove();
-			$elements = newList;
+			$originalInput.last().after(html)
+			$tageditListUl = $originalInput.last().next();
+			$originalInput.remove();
 
 			// Check if some of the elementshav to be marked as deleted
 			if(options.deletedPostfix.length > 0) {
-				$elements.find('input[name$="'+options.deletedPostfix+'\]"]').each(function() {
+				$tageditListUl.find('input[name$="'+options.deletedPostfix+'\]"]').each(function() {
 					markAsDeleted($(this).parent());
 				});
 			}
@@ -148,11 +154,12 @@
 			// put an input field at the End
 			// Put an empty element at the end
 			html = '<li class="tagedit-listelement tagedit-listelement-new">';
-			html += '<input type="text" name="'+baseName+'[]" value="" disabled="disabled" class="tagedit-input tagedit-input-disabled" dir="'+options.direction+'"/>';
+			html += '<input type="text" name="' + baseName + '[]" value="" disabled="disabled" class="tagedit-input tagedit-input-disabled" dir="' + options.direction + '"/>';
 			html += '</li>';
 			html += '</ul>';
 
-			$elements.append(html).find('.tagedit-input').each(function() { // Set function on the input
+			$tageditListUl.append(html).find('.tagedit-input').each(function() { // Set function on the input
+				var that = this;
 				$(this).autoGrowInput({comfortZone: 15, minWidth: 15, maxWidth: 20000});
 
 				// Event is triggert in case of choosing an item from the autocomplete, or finish the input
@@ -183,7 +190,11 @@
 								html += '<a class="tagedit-close" title="' + options.texts.removeLinkTitle + '">x</a>';
 								html += '</li>';
 
-								$(this.parentNode).before(html);
+								var $newLi = $(html);
+
+								$(this.parentNode).before($newLi);
+
+								$tageditListUl.trigger('tageditAppended', $newLi[0]);
 							}
 						}
 					}
@@ -201,7 +212,7 @@
 						case 8: // BACKSPACE
 							if($(this).val().length == 0) {
 								// delete Last Tag
-								$elements.find('li.tagedit-listelement-old').last().remove();
+								$tageditListUl.find('li.tagedit-listelement-old').last().remove();
 								event.preventDefault();
 								return false;
 							}
@@ -273,7 +284,7 @@
 				}
 				return false;
 			});
-		}
+		})();
 
 		/**
 		* Sets all Actions and events for editing an Existing Tag.
@@ -315,8 +326,6 @@
 			html += '<a class="tagedit-break" title="'+options.texts.breakEditLinkTitle+'">x</a>';
 
 			// If the Element is one from the Database, it can be deleted
-			console.log($element.find(':hidden'));
-			console.log($element.find(':hidden').attr('data-tagedit-fromdb'));
 			if(options.allowDatabaseDelete == true && $element.find(':hidden').length > 0
 				&& $element.find(':hidden').attr('data-tagedit-fromdb') == 'true'
 			) {
@@ -429,7 +438,7 @@
             var compareValue = this.value;
 
 			var isNew = true;
-			$elements.find('li.tagedit-listelement-old input:hidden').each(function() {
+			$tageditListUl.find('li.tagedit-listelement-old input:hidden').each(function() {
 				if(this.value == compareValue) {
 					isNew = false;
 				}
@@ -474,5 +483,7 @@
 
 			return [isNew, autoCompleteId];
 		}
+
+		return $tageditListUl;
 	}
 })(jQuery);
