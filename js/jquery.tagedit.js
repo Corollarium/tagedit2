@@ -20,7 +20,6 @@
 *
 * Possible options:
 *
-*  autocompleteURL: '', // url for a autocompletion
 *  deleteEmptyItems: true, // Deletes items with empty value
 *  deletedPostfix: '-d', // will be put to the Items that are marked as delete
 *  addedPostfix: '-a', // will be put to the Items that are choosem from the database
@@ -54,7 +53,6 @@
 		*/
 		options = $.extend(true, {
 			// default options here
-			autocompleteURL: null,
             checkToDeleteURL: null,
 			deletedPostfix: '-d',
 			addedPostfix: '-a',
@@ -89,11 +87,6 @@
 		// no action if there are no elements
 		if(this.length == 0) {
 			return;
-		}
-
-		// set the autocompleteOptions source
-		if(options.autocompleteURL) {
-			options.autocompleteOptions.source = options.autocompleteURL;
 		}
 
 		// Set the direction of the inputs
