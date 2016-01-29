@@ -26,7 +26,7 @@
 *  addedPostfix: '-a', // will be put to the Items that are choosem from the database
 *  additionalListClass: '', // put a classname here if the wrapper ul shoud receive a special class
 *  allowEdit: true, // Switch on/off edit entries
-*  allowDelete: true, // Switch on/off deletion of entries. Will be ignored if allowEdit = false
+*  allowDatabaseDelete: true, // Switch on/off deletion of entries. Will be ignored if allowEdit = false
 *  allowAdd: true, // switch on/off the creation of new entries
 *  direction: 'ltr' // Sets the writing direction for Outputs and Inputs
 *  animSpeed: 500 // Sets the animation speed for effects
@@ -61,7 +61,7 @@
 			addedPostfix: '-a',
 			additionalListClass: '',
 			allowEdit: true,
-			allowDelete: true,
+			allowDatabaseDelete: true,
 			allowAdd: true,
 			direction: 'ltr',
 			animSpeed: 500,
@@ -163,110 +163,107 @@
 			html += '</li>';
 			html += '</ul>';
 
-			$elements
-				.append(html)
-				// Set function on the input
-				.find('#tagedit-input').each(function() {
-						$(this).autoGrowInput({comfortZone: 15, minWidth: 15, maxWidth: 20000});
+			$elements.append(html).find('#tagedit-input').each(function() { // Set function on the input
+				$(this).autoGrowInput({comfortZone: 15, minWidth: 15, maxWidth: 20000});
 
-						// Event is triggert in case of choosing an item from the autocomplete, or finish the input
-						$(this).on('transformToTag', function(event, id) {
-							var oldValue = (typeof id != 'undefined' && (id.length > 0 || id > 0));
+				// Event is triggert in case of choosing an item from the autocomplete, or finish the input
+				$(this).on('transformToTag', function(event, id) {
+					var isFromDatabase = (typeof id != 'undefined' && (id.length > 0 || id > 0));
 
-							var checkAutocomplete = oldValue == true? false : true;
-							// check if the Value ist new
-							var isNewResult = isNew($(this).val(), checkAutocomplete);
-							if(isNewResult[0] === true || (isNewResult[0] === false && typeof isNewResult[1] == 'string')) {
+					var checkAutocomplete = isFromDatabase == true? false : true;
+					// check if the Value ist new
+					var isNewResult = isNew($(this).val(), checkAutocomplete);
+					if(isNewResult[0] === true || (isNewResult[0] === false && typeof isNewResult[1] == 'string')) {
 
-								if(oldValue == false && typeof isNewResult[1] == 'string') {
-									oldValue = true;
-									id = isNewResult[1];
-								}
-
-								if(options.allowAdd == true || oldValue) {
-									var newTagValue = options.beforeSave(this.value);
-									if (newTagValue) {
-										// Make a new tag in front the input
-										html = '<li class="tagedit-listelement tagedit-listelement-old">';
-										html += '<span dir="' + options.direction + '">' + newTagValue + '</span>';
-										var name = oldValue ? baseName + '[' + id + options.addedPostfix + ']' : baseName + '[]';
-										html += '<input type="hidden" name="' + name + '" value="' + newTagValue + '" />';
-										html += '<a class="tagedit-close" title="' + options.texts.removeLinkTitle + '">x</a>';
-										html += '</li>';
-
-										$(this.parentNode).before(html);
-									}
-								}
-							}
-							$(this).val('');
-
-							// close autocomplete
-							if(options.autocompleteOptions.source) {
-								$(this).autocomplete( "close" );
-							}
-
-						})
-						.keydown(function(event) {
-							var code = event.keyCode > 0? event.keyCode : event.which;
-
-							switch(code) {
-								case 8: // BACKSPACE
-									if($(this).val().length == 0) {
-										// delete Last Tag
-										var elementToRemove = $elements.find('li.tagedit-listelement-old').last();
-										elementToRemove.fadeOut(options.animSpeed, function() {elementToRemove.remove();})
-										event.preventDefault();
-										return false;
-									}
-									break;
-								case 9: // TAB
-									if($(this).val().length > 0 && $('ul.ui-autocomplete #ui-active-menuitem').length == 0) {
-										$(this).trigger('transformToTag');
-										event.preventDefault();
-										return false;
-									}
-								break;
-							}
-							return true;
-						})
-						.keypress(function(event) {
-							var code = event.keyCode > 0? event.keyCode : event.which;
-							if($.inArray(code, options.breakKeyCodes) > -1) {
-								if($(this).val().length > 0 && $('ul.ui-autocomplete #ui-active-menuitem').length == 0) {
-									$(this).trigger('transformToTag');
-								}
-							event.preventDefault();
-							return false;
-							}
-							return true;
-						})
-						.on('paste', function(e){
-							var that = $(this);
-							if (e.type == 'paste'){
-								setTimeout(function(){
-									that.trigger('transformToTag');
-								}, 1);
-							}
-						})
-						.blur(function() {
-							if($(this).val().length == 0) {
-								// disable the field to prevent sending with the form
-								$(this).attr('disabled', 'disabled').addClass('tagedit-input-disabled');
-							}
-							else {
-								// Delete entry after a timeout
-								var input = $(this);
-								$(this).data('blurtimer', window.setTimeout(function() {input.val('');}, 500));
-							}
-						})
-						.focus(function() {
-							window.clearTimeout($(this).data('blurtimer'));
-						});
-
-						if(options.autocompleteOptions.source != false) {
-							$(this).autocomplete(options.autocompleteOptions);
+						if(isFromDatabase == false && typeof isNewResult[1] == 'string') {
+							isFromDatabase = true;
+							id = isNewResult[1];
 						}
-					})
+
+						if(options.allowAdd == true || isFromDatabase) {
+							var newTagValue = options.beforeSave(this.value);
+							if (newTagValue) {
+								var name = isFromDatabase ?
+									baseName + '[' + id + options.addedPostfix + ']' : baseName + '[]';
+
+								// Make a new tag in front the input
+								html = '<li class="tagedit-listelement tagedit-listelement-old">';
+								html += '<span dir="' + options.direction + '">' + newTagValue + '</span>';
+								html += '<input type="hidden" name="' + name + '" ' +
+									'value="' + newTagValue + '" data-tagedit-fromdb="' + (isFromDatabase ? 'true' : 'false') + '" />';
+								html += '<a class="tagedit-close" title="' + options.texts.removeLinkTitle + '">x</a>';
+								html += '</li>';
+
+								$(this.parentNode).before(html);
+							}
+						}
+					}
+					$(this).val('');
+
+					// close autocomplete
+					if(options.autocompleteOptions.source) {
+						$(this).autocomplete( "close" );
+					}
+
+				}).keydown(function(event) {
+					var code = event.keyCode > 0? event.keyCode : event.which;
+
+					switch(code) {
+						case 8: // BACKSPACE
+							if($(this).val().length == 0) {
+								// delete Last Tag
+								var elementToRemove = $elements.find('li.tagedit-listelement-old').last();
+								elementToRemove.fadeOut(options.animSpeed, function() {elementToRemove.remove();})
+								event.preventDefault();
+								return false;
+							}
+							break;
+						case 9: // TAB
+							if($(this).val().length > 0 && $('ul.ui-autocomplete #ui-active-menuitem').length == 0) {
+								$(this).trigger('transformToTag');
+								event.preventDefault();
+								return false;
+							}
+						break;
+					}
+					return true;
+				}).keypress(function(event) {
+					var code = event.keyCode > 0? event.keyCode : event.which;
+					if($.inArray(code, options.breakKeyCodes) > -1) {
+						if($(this).val().length > 0 && $('ul.ui-autocomplete #ui-active-menuitem').length == 0) {
+							$(this).trigger('transformToTag');
+						}
+					event.preventDefault();
+					return false;
+					}
+					return true;
+				}).on('paste', function(e){
+					var that = $(this);
+					if (e.type == 'paste'){
+						setTimeout(function(){
+							that.trigger('transformToTag');
+						}, 1);
+					}
+				})
+				.blur(function() {
+					if($(this).val().length == 0) {
+						// disable the field to prevent sending with the form
+						$(this).attr('disabled', 'disabled').addClass('tagedit-input-disabled');
+					}
+					else {
+						// Delete entry after a timeout
+						var input = $(this);
+						$(this).data('blurtimer', window.setTimeout(function() {input.val('');}, 500));
+					}
+				})
+				.focus(function() {
+					window.clearTimeout($(this).data('blurtimer'));
+				});
+
+				if(options.autocompleteOptions.source != false) {
+					$(this).autocomplete(options.autocompleteOptions);
+				}
+			})
 				.end()
 				.click(function(event) {
 					switch(event.target.tagName) {
@@ -305,12 +302,12 @@
 				return;
 			}
 
-			var element = event.target.tagName == 'SPAN'? $(event.target).parent() : $(event.target);
+			var $element = event.target.tagName == 'SPAN'? $(event.target).parent() : $(event.target);
 
 			var closeTimer = null;
 
 			// Event that is fired if the User finishes the edit of a tag
-			element.on('finishEdit', function(event, doReset) {
+			$element.on('finishEdit', function(event, doReset) {
 				window.clearTimeout(closeTimer);
 
 				var textfield = $(this).find(':text');
@@ -327,88 +324,77 @@
 				return false;
 			});
 
-			var hidden = element.find(':hidden');
+			var hidden = $element.find(':hidden');
 			html = '<input type="text" name="tmpinput" autocomplete="off" value="'+hidden.val()+'" class="tagedit-edit-input" dir="'+options.direction+'"/>';
 			html += '<a class="tagedit-save" title="'+options.texts.saveEditLinkTitle+'">o</a>';
 			html += '<a class="tagedit-break" title="'+options.texts.breakEditLinkTitle+'">x</a>';
 
 			// If the Element is one from the Database, it can be deleted
-			if(options.allowDelete == true && element.find(':hidden').length > 0 &&
-			typeof element.find(':hidden').attr('name').match(baseNameRegexp)[3] != 'undefined') {
+			console.log($element.find(':hidden'));
+			console.log($element.find(':hidden').attr('data-tagedit-fromdb'));
+			if(options.allowDatabaseDelete == true && $element.find(':hidden').length > 0
+				&& $element.find(':hidden').attr('data-tagedit-fromdb') == 'true'
+			) {
 				html += '<a class="tagedit-delete" title="'+options.texts.deleteLinkTitle+'">d</a>';
 			}
 
 			hidden.after(html);
-			element
-				.addClass('tagedit-listelement-edit')
-				.find('a.tagedit-save')
-					.click(function() {
-						$(this).parent().trigger('finishEdit');
-						return false;
-					})
-				.end()
-				.find('a.tagedit-break')
-					.click(function() {
-						$(this).parent().trigger('finishEdit', [true]);
-						return false;
-					})
-				.end()
-				.find('a.tagedit-delete')
-					.click(function() {
-                        window.clearTimeout(closeTimer);
-						if(confirm(options.texts.deleteConfirmation)) {
-                            var canDelete = checkToDelete($(this).parent());
-                            if (!canDelete && confirm(options.texts.forceDeleteConfirmation)) {
-                                markAsDeleted($(this).parent());
-                            }
+			$element.addClass('tagedit-listelement-edit').find('a.tagedit-save').click(function() {
+				$(this).parent().trigger('finishEdit');
+				return false;
+			}).end().find('a.tagedit-break').click(function() {
+				$(this).parent().trigger('finishEdit', [true]);
+				return false;
+			}).end().find('a.tagedit-delete').click(function() {
+                window.clearTimeout(closeTimer);
+				if(confirm(options.texts.deleteConfirmation)) {
+                    var canDelete = checkToDelete($(this).parent());
+                    if (!canDelete && confirm(options.texts.forceDeleteConfirmation)) {
+                        markAsDeleted($(this).parent());
+                    }
 
-                            if(canDelete) {
-                                markAsDeleted($(this).parent());
-                            }
+                    if(canDelete) {
+                        markAsDeleted($(this).parent());
+                    }
 
-                            $(this).parent().find(':text').trigger('finishEdit', [true]);
-						}
-                        else {
-                            $(this).parent().find(':text').trigger('finishEdit', [true]);
-                        }
-						return false;
-					})
-				.end()
-				.find(':text')
-					.focus()
-					.autoGrowInput({comfortZone: 10, minWidth: 15, maxWidth: 20000})
-					.keypress(function(event) {
-						switch(event.keyCode) {
-							case 13: // RETURN
-								event.preventDefault();
-								$(this).parent().trigger('finishEdit');
-								return false;
-							case 27: // ESC
-								event.preventDefault();
-								$(this).parent().trigger('finishEdit', [true]);
-								return false;
-						}
-						return true;
-					})
-					.blur(function() {
-						var that = $(this);
-						closeTimer = window.setTimeout(function() {that.parent().trigger('finishEdit', [true])}, 500);
-					});
+                    $(this).parent().find(':text').trigger('finishEdit', [true]);
+				}
+                else {
+                    $(this).parent().find(':text').trigger('finishEdit', [true]);
+                }
+				return false;
+			}).end().find(':text').focus().autoGrowInput({comfortZone: 10, minWidth: 15, maxWidth: 20000})
+				.keypress(function(event) {
+					switch(event.keyCode) {
+						case 13: // RETURN
+							event.preventDefault();
+							$(this).parent().trigger('finishEdit');
+							return false;
+						case 27: // ESC
+							event.preventDefault();
+							$(this).parent().trigger('finishEdit', [true]);
+							return false;
+					}
+					return true;
+				}).blur(function() {
+					var that = $(this);
+					closeTimer = window.setTimeout(function() {that.parent().trigger('finishEdit', [true])}, 500);
+				});
 		}
 
         /**
          * Verifies if the tag select to be deleted is used by other records using an Ajax request.
          *
-         * @param element
+         * @param $element
          * @returns {boolean}
          */
-        function checkToDelete(element) {
+        function checkToDelete($element) {
             // if no URL is provide will not verify
             if(options.checkToDeleteURL === null) {
                 return false;
             }
 
-            var inputName = element.find('input:hidden').attr('name');
+            var inputName = $element.find('input:hidden').attr('name');
             var idPattern = new RegExp('\\d');
             var tagId = inputName.match(idPattern);
             var checkResult = false;
@@ -419,10 +405,10 @@
                 type: 'POST',
                 data: {tagId : tagId},
             }).done(function(data, textStatus, XMLHttpRequest) {
-				// Expected JSON Object: { "success": Boolean, "allowDelete": Boolean}
+				// Expected JSON Object: { "success": Boolean, "allowDatabaseDelete": Boolean}
 	            var result = $.parseJSON(XMLHttpRequest.responseText);
 	            if(result.success === true){
-		            checkResult = result.allowDelete;
+		            checkResult = result.allowDatabaseDelete;
 	            }
             });
 
@@ -432,14 +418,14 @@
 		/**
 		* Marks a single Tag as deleted.
 		*
-		* @param element {object}
+		* @param $element {object}
 		*/
-		function markAsDeleted(element) {
-			element
+		function markAsDeleted($element) {
+			$element
 				.trigger('finishEdit', [true])
 				.addClass('tagedit-listelement-deleted')
 				.attr('title', options.deletedElementTitle);
-				element.find(':hidden').each(function() {
+				$element.find(':hidden').each(function() {
 					var nameEndRegexp = new RegExp('('+options.addedPostfix+'|'+options.deletedPostfix+')?\]');
 					var name = $(this).attr('name').replace(nameEndRegexp, options.deletedPostfix+']');
 					$(this).attr('name', name);
