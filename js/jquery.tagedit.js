@@ -243,20 +243,14 @@
 							that.trigger('transformToTag');
 						}, 1);
 					}
-				})
-				.blur(function() {
-					if($(this).val().length == 0) {
+				}).on('blur', function() {
+					if(this.value.length == 0) {
 						// disable the field to prevent sending with the form
 						$(this).attr('disabled', 'disabled').addClass('tagedit-input-disabled');
 					}
 					else {
-						// Delete entry after a timeout
-						var input = $(this);
-						$(this).data('blurtimer', window.setTimeout(function() {input.val('');}, 500));
+						$(this).trigger('transformToTag');
 					}
-				})
-				.focus(function() {
-					window.clearTimeout($(this).data('blurtimer'));
 				});
 
 				if(options.autocompleteOptions.source != false) {
