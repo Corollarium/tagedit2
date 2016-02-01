@@ -1,0 +1,23 @@
+{
+  "name": "tagedit",
+  "homepage": "https://github.com/BrunoRB/tagedit",
+  "authors": [
+    ""
+  ],
+  "description": "",
+  "main": "",
+  "moduleType": [],
+  "keywords": [
+    "tag",
+    "javascript"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "server"
+  ]
+}
