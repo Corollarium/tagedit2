@@ -35,6 +35,9 @@
 *
 * Callbacks:
 *
+*  beforeAppend:
+*   triggered right before the append of a tag element. params: $li, element_id, value, basename
+*
 *  beforeSave:
 *      callback triggered when a new tag is being created, it receives the tag value as a parameter and should return
 *   a tag value as a result, if an empty string (or a coerced false value) is returned then the tag will not be created.
@@ -45,8 +48,6 @@
 * Events:
 *
 *  transformToTag: triggered during the process of creation of a new tag (or when you select one from the autocomplete)
-*  tageditAppended: triggered when a new tag is added to the list, you have access to the following params:
-*   - li: the list
 */
 
 (function($) {
@@ -82,8 +83,13 @@
 			beforeSave: function(tag) {
 				return tag;
 			},
+
 			beforeRemove: function($li) {
 				return true;
+			},
+
+			beforeAppend: function($li, elementId, value, baseName) {
+				return $li;
 			}
 		}, options || {});
 
@@ -132,10 +138,12 @@
 					var value = this.value;
 
 					html += '<li class="tagedit-listelement tagedit-listelement-old" data-tagedit-fromdb="true" >';
-					html += '<span dir="'+options.direction+'">' + value + '</span>';
+					html += '<span dir="' + options.direction + '">' + value + '</span>';
 					html += '<input type="hidden" name="'+ baseName +'[' + elementId + ']" value="' + value + '" />';
 					html += '<a class="tagedit-close" title="' + options.texts.removeLinkTitle + '">x</a>';
 					html += '</li>';
+					html = $(html);
+					html = options.beforeAppend(html, elementId, value, baseName);
 				}
 			});
 
@@ -183,11 +191,9 @@
 								html += '<a class="tagedit-close" title="' + options.texts.removeLinkTitle + '">x</a>';
 								html += '</li>';
 
-								var $newLi = $(html);
+								var $newLi = options.beforeAppend($(html), id, newTagValue, baseName);
 
 								$(this.parentNode).before($newLi);
-
-								$tageditListUl.trigger('tageditAppended', $newLi[0]);
 							}
 						}
 					}
