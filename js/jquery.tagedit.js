@@ -126,7 +126,7 @@
 		 * Creates the tageditinput from a list of textinputs
 		 */
 		(function inputsToList() {
-			var html = '<ul class="tagedit-list ' + options.additionalListClass + '">';
+			var html = $('<ul class="tagedit-list ' + options.additionalListClass + '">');
 
 			$originalInputs.each(function() {
 				var element_name = $(this).attr('name').match(baseNameRegexp);
@@ -137,13 +137,14 @@
 					var elementId = typeof element_name[2] != 'undefined'? element_name[2]: '';
 					var value = this.value;
 
-					html += '<li class="tagedit-listelement tagedit-listelement-old" data-tagedit-fromdb="true" >';
-					html += '<span dir="' + options.direction + '">' + value + '</span>';
-					html += '<input type="hidden" name="'+ baseName +'[' + elementId + ']" value="' + value + '" />';
-					html += '<a class="tagedit-close" title="' + options.texts.removeLinkTitle + '">x</a>';
-					html += '</li>';
-					html = $(html);
-					html = options.beforeAppend(html, elementId, value, baseName);
+					var innHtml = '<li class="tagedit-listelement tagedit-listelement-old" data-tagedit-fromdb="true" >';
+					innHtml += '<span dir="' + options.direction + '">' + value + '</span>';
+					innHtml += '<input type="hidden" name="' + baseName + '[' + elementId + ']" value="' + value + '" />';
+					innHtml += '<a class="tagedit-close" title="' + options.texts.removeLinkTitle + '">x</a>';
+					innHtml += '</li>';
+					html.append(
+						options.beforeAppend($(innHtml), elementId, value, baseName)
+					);
 				}
 			});
 
@@ -184,14 +185,14 @@
 									baseName + '[' + id + ']' : baseName + '[]';
 
 								// Make a new tag in front the input
-								html = '<li class="tagedit-listelement tagedit-listelement-old" ' +
+								var innHtml = '<li class="tagedit-listelement tagedit-listelement-old" ' +
 									'data-tagedit-fromdb="' + (isFromDatabase ? 'true' : 'false') + '" >';
-								html += '<span dir="' + options.direction + '">' + newTagValue + '</span>';
-								html += '<input type="hidden" name="' + name + '" value="' + newTagValue + '"/>';
-								html += '<a class="tagedit-close" title="' + options.texts.removeLinkTitle + '">x</a>';
-								html += '</li>';
+								innHtml += '<span dir="' + options.direction + '">' + newTagValue + '</span>';
+								innHtml += '<input type="hidden" name="' + name + '" value="' + newTagValue + '"/>';
+								innHtml += '<a class="tagedit-close" title="' + options.texts.removeLinkTitle + '">x</a>';
+								innHtml += '</li>';
 
-								var $newLi = options.beforeAppend($(html), id, newTagValue, baseName);
+								var $newLi = options.beforeAppend($(innHtml), id, newTagValue, baseName);
 
 								$(this.parentNode).before($newLi);
 							}
