@@ -21,11 +21,8 @@
 * Possible options:
 *
 *  deleteEmptyItems: true, // Deletes items with empty value
-*  deletedPostfix: '-d', // will be put to the Items that are marked as delete
-*  addedPostfix: '-a', // will be put to the Items that are choosem from the database
 *  additionalListClass: '', // put a classname here if the wrapper ul shoud receive a special class
 *  allowEdit: true, // Switch on/off edit entries
-*  allowDatabaseDelete: true, // Switch on/off deletion of entries. Will be ignored if allowEdit = false
 *  allowAdd: true, // switch on/off the creation of new entries
 *  direction: 'ltr' // Sets the writing direction for Outputs and Inputs
 *  autocompleteOptions: {}, // Setting Options for the jquery UI Autocomplete (http://jqueryui.com/demos/autocomplete/)
@@ -33,9 +30,6 @@
 *  texts: { // some texts
 *      removeLinkTitle: 'Remove from list.',
 *      saveEditLinkTitle: 'Save changes.',
-*      deleteLinkTitle: 'Delete this tag from database.',
-*      deleteConfirmation: 'Are you sure to delete this entry?',
-*      deletedElementTitle: 'This Element will be deleted.',
 *      breakEditLinkTitle: 'Cancel'
 *  }
 *
@@ -64,11 +58,8 @@
 		options = $.extend(true, {
 			// default options here
             checkToDeleteURL: null,
-			deletedPostfix: '-d',
-			addedPostfix: '-a',
 			additionalListClass: '',
 			allowEdit: true,
-			allowDatabaseDelete: true,
 			allowAdd: true,
 			direction: 'ltr',
 			autocompleteOptions: {
@@ -109,10 +100,10 @@
 
 		var $originalInputs = this;
 
-		var baseNameRegexp = new RegExp("^(.*)\\[([0-9]*?("+options.deletedPostfix+"|"+options.addedPostfix+")?)?\]$", "i");
+		var baseNameRegexp = new RegExp("^(.*)\\[([0-9]*?)?\]$", "i");
 
 		var baseName = $originalInputs.eq(0).attr('name').match(baseNameRegexp);
-		if(baseName && baseName.length == 4) {
+		if(baseName && baseName.length == 3) {
 			baseName = baseName[1];
 		}
 		else {
@@ -133,7 +124,7 @@
 
 			$originalInputs.each(function() {
 				var element_name = $(this).attr('name').match(baseNameRegexp);
-				if(element_name && element_name.length == 4
+				if(element_name && element_name.length == 3
 					&& (options.deleteEmptyItems == false || $(this).val().length > 0)
 					&& element_name[1].length > 0
 				) {
@@ -152,13 +143,6 @@
 			$originalInputs.last().after(html)
 			$tageditListUl = $originalInputs.last().next();
 			$originalInputs.remove();
-
-			// Check if some of the elementshav to be marked as deleted
-			if(options.deletedPostfix.length > 0) {
-				$tageditListUl.find('input[name$="'+options.deletedPostfix+'\]"]').each(function() {
-					markAsDeleted($(this).parent());
-				});
-			}
 
 			// put an input field at the End
 			// Put an empty element at the end
@@ -189,7 +173,7 @@
 							var newTagValue = options.beforeSave(this.value);
 							if (newTagValue) {
 								var name = isFromDatabase ?
-									baseName + '[' + id + options.addedPostfix + ']' : baseName + '[]';
+									baseName + '[' + id + ']' : baseName + '[]';
 
 								// Make a new tag in front the input
 								html = '<li class="tagedit-listelement tagedit-listelement-old" ' +
@@ -324,7 +308,7 @@
 				}
 
 				textfield.remove();
-				$(this).find('a.tagedit-save, a.tagedit-break, a.tagedit-delete').remove(); // Workaround. This normaly has to be done by autogrow Plugin
+				$(this).find('a.tagedit-save, a.tagedit-break').remove(); // Workaround. This normaly has to be done by autogrow Plugin
 				$(this).removeClass('tagedit-listelement-edit').off('finishEdit');
 				return false;
 			});
@@ -334,37 +318,12 @@
 			html += '<a class="tagedit-save" title="'+options.texts.saveEditLinkTitle+'">o</a>';
 			html += '<a class="tagedit-break" title="'+options.texts.breakEditLinkTitle+'">x</a>';
 
-			// If the Element is one from the Database, it can be deleted
-			if(options.allowDatabaseDelete == true && $element.find(':hidden').length > 0
-				&& $element.attr('data-tagedit-fromdb') == 'true'
-			) {
-				html += '<a class="tagedit-delete" title="'+options.texts.deleteLinkTitle+'">d</a>';
-			}
-
 			hidden.after(html);
 			$element.addClass('tagedit-listelement-edit').find('a.tagedit-save').click(function() {
 				$(this).parent().trigger('finishEdit');
 				return false;
 			}).end().find('a.tagedit-break').click(function() {
 				$(this).parent().trigger('finishEdit', [true]);
-				return false;
-			}).end().find('a.tagedit-delete').click(function() {
-                window.clearTimeout(closeTimer);
-				if(confirm(options.texts.deleteConfirmation)) {
-                    var canDelete = checkToDelete($(this).parent());
-                    if (!canDelete && confirm(options.texts.forceDeleteConfirmation)) {
-                        markAsDeleted($(this).parent());
-                    }
-
-                    if(canDelete) {
-                        markAsDeleted($(this).parent());
-                    }
-
-                    $(this).parent().find(':text').trigger('finishEdit', [true]);
-				}
-                else {
-                    $(this).parent().find(':text').trigger('finishEdit', [true]);
-                }
 				return false;
 			}).end().find(':text').focus().autoGrowInput({comfortZone: 10, minWidth: 15, maxWidth: 20000})
 				.keypress(function(event) {
@@ -383,54 +342,6 @@
 					var that = $(this);
 					closeTimer = window.setTimeout(function() {that.parent().trigger('finishEdit', [true])}, 500);
 				});
-		}
-
-        /**
-         * Verifies if the tag select to be deleted is used by other records using an Ajax request.
-         *
-         * @param $element
-         * @returns {boolean}
-         */
-        function checkToDelete($element) {
-            // if no URL is provide will not verify
-            if(options.checkToDeleteURL === null) {
-                return false;
-            }
-
-            var inputName = $element.find('input:hidden').attr('name');
-            var idPattern = new RegExp('\\d');
-            var tagId = inputName.match(idPattern);
-            var checkResult = false;
-
-            $.ajax({
-                url: options.checkToDeleteURL,
-                dataType: 'json',
-                type: 'POST',
-                data: {tagId : tagId},
-            }).done(function(data, textStatus, XMLHttpRequest) {
-				// Expected JSON Object: { "success": Boolean, "allowDatabaseDelete": Boolean}
-	            var result = $.parseJSON(XMLHttpRequest.responseText);
-	            if(result.success === true){
-		            checkResult = result.allowDatabaseDelete;
-	            }
-            });
-
-            return checkResult;
-        }
-
-		/**
-		* Marks a single Tag as deleted.
-		*
-		* @param $element {object}
-		*/
-		function markAsDeleted($element) {
-			$element.trigger('finishEdit', [true]).addClass('tagedit-listelement-deleted')
-				.attr('title', options.deletedElementTitle);
-			$element.find(':hidden').each(function() {
-				var nameEndRegexp = new RegExp('('+options.addedPostfix+'|'+options.deletedPostfix+')?\]');
-				var name = $(this).attr('name').replace(nameEndRegexp, options.deletedPostfix+']');
-				$(this).attr('name', name);
-			});
 		}
 
 		/**
