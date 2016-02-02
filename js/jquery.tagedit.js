@@ -179,12 +179,15 @@
 
 					var checkAutocomplete = isFromDatabase == true? false : true;
 					// check if the Value ist new
-					var isNewResult = isNew($(this).val(), checkAutocomplete);
-					if(isNewResult[0] === true || (isNewResult[0] === false && typeof isNewResult[1] == 'string')) {
+					var data = isNew($(this).val(), checkAutocomplete);
+					var isNewResult = data[0];
+					var foundId = data[1];
+					if(isNewResult === true || (isNewResult === false && foundId > 0)) {
 
-						if(isFromDatabase == false && typeof isNewResult[1] == 'string') {
+						// happens when you typed a tag that already exists at the database
+						if(isFromDatabase == false && foundId > 0) {
 							isFromDatabase = true;
-							id = isNewResult[1];
+							id = foundId;
 						}
 
 						if(options.allowAdd == true || isFromDatabase) {
@@ -316,16 +319,29 @@
 				window.clearTimeout(closeTimer);
 
 				var textfield = $(this).find(':text');
-				var isNewResult = isNew(textfield.val(), true);
-				if(textfield.val().length > 0 && (typeof doReset == 'undefined' || doReset === false) && (isNewResult[0] == true)) {
+				var val = textfield.val();
+
+				var data = isNew(val, true);
+				var isNewResult = data[0];
+				var foundId = data[1];
+				if(val.length > 0 && (typeof doReset == 'undefined' || doReset === false) && isNewResult == true) {
 					// This is a new Value and we do not want to do a reset. Set the new value
-					$(this).find(':hidden').val(textfield.val());
-					$(this).find('span').html(textfield.val());
+					$(this).find('input[type="hidden"]').val(val);
+					$(this).find('span').html(val);
+				}
+				else if (val.length > 0 && foundId) {
+					// This is a new Value and we do not want to do a reset. Set the new value
+					$(this).find('input[type="hidden"]').val(val).attr('name', baseName + '[' + foundId + ']');
+					$(this).find('span').html(val);
+					$(this).attr('data-tagedit-fromdb', true);
 				}
 
 				textfield.remove();
 				$(this).find('a.tagedit-save, a.tagedit-break').remove(); // Workaround. This normaly has to be done by autogrow Plugin
 				$(this).removeClass('tagedit-listelement-edit').off('finishEdit');
+
+				options.beforeAppend($(this), foundId, val, baseName);
+
 				return false;
 			});
 
