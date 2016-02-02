@@ -1,0 +1,12 @@
+{
+	"name": "tagedit",
+	"version": "1.0.0",
+	"author": "BrunoRB",
+	"devDependencies": {
+		"grunt": "latest",
+		"grunt-cli": "latest",
+		"grunt-contrib-uglify" : "latest",
+		"grunt-contrib-cssmin": "latest",
+		"bower": "latest"
+	}
+}
