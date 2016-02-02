@@ -53,6 +53,10 @@
 (function($) {
 
 	$.fn.tagedit = function(options) {
+		// cache tags already found with ajax
+		var FOUND_TAGS = {};
+
+
 		/**
 		* Merge Options with defaults
 		*/
@@ -64,9 +68,14 @@
 			allowAdd: true,
 			direction: 'ltr',
 			autocompleteOptions: {
-				select: function( event, ui ) {
+				select: function(event, ui) {
 					$(this).val(ui.item.value).trigger('transformToTag', [ui.item.id]);
 					return false;
+				},
+				response: function(event, ui) {
+					ui.content.forEach(function(obj) {
+						FOUND_TAGS[obj.value] = obj;
+					});
 				}
 			},
 			breakKeyCodes: [ 13, 44 ],
@@ -362,7 +371,7 @@
             checkAutocomplete = typeof checkAutocomplete == 'undefined'? false : checkAutocomplete;
 			var autoCompleteId = null;
 
-            var compareValue = this.value;
+            var compareValue = value;
 
 			var isNew = true;
 			$tageditListUl.find('li.tagedit-listelement-old input:hidden').each(function() {
@@ -377,32 +386,43 @@
 					result = options.autocompleteOptions.source;
 				}
                 else if ($.isFunction(options.autocompleteOptions.source)) {
-					options.autocompleteOptions.source({term: value}, function (data) {result = data});
-				}
-                else if (typeof options.autocompleteOptions.source === "string") {
-					// Check also autocomplete values
-					var autocompleteURL = options.autocompleteOptions.source;
-					if (autocompleteURL.match(/\?/)) {
-						autocompleteURL += '&';
-					} else {
-						autocompleteURL += '?';
-					}
-					autocompleteURL += 'term=' + value;
-					$.ajax({
-						url: autocompleteURL,
-						dataType: 'json'
-					}).done(function(data, textStatus, XMLHttpRequest) {
-						result = $.parseJSON(XMLHttpRequest.responseText);
+					options.autocompleteOptions.source({term: value}, function (data) {
+						result = data
 					});
 				}
+                else if (typeof options.autocompleteOptions.source === "string") {
+					var found = FOUND_TAGS[value];
+					if (found) {
+						result = [{value: found.value, id: found.id}];
+					}
+					else {
+						// Check also autocomplete values
+						var autocompleteURL = options.autocompleteOptions.source;
+						if (autocompleteURL.match(/\?/)) {
+							autocompleteURL += '&';
+						} else {
+							autocompleteURL += '?';
+						}
+						autocompleteURL += 'term=' + value;
+						$.ajax({
+							url: autocompleteURL,
+							dataType: 'json',
+							async: false
+						}).done(function(data, textStatus, XMLHttpRequest) {
+							result = data;
+							for (var i in result) {
+								FOUND_TAGS[result[i].value] = result[i];
+							}
+						});
+					}
+				}
 
-				// If there is an entry for that already in the autocomplete, don't use it (Check could be case sensitive or not)
-				for (var i = 0; i < result.length; i++) {
-                    var resultValue = result[i].label? result[i].label : result[i];
-                    var label = resultValue;
+				// If there is an entry for that already in the autocomplete, don't use it
+				for (var i=0; i<result.length; i++) {
+                    var label = result[i].value;
 					if (label == compareValue) {
 						isNew = false;
-						autoCompleteId = typeof result[i] == 'string' ? i : result[i].id;
+						autoCompleteId = result[i].id;
 						break;
 					}
 				}
