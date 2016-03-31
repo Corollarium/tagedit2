@@ -87,6 +87,7 @@
 				breakEditLinkTitle: 'Cancel',
                 forceDeleteConfirmation: 'There are more records using this tag, are you sure do you want to remove it?'
 			},
+			tabindex: false,
 
 			beforeSave: function(tag) {
 				return tag;
@@ -129,6 +130,12 @@
 		// will be created in the following auto-executable function (inputsToList)
 		var $tageditListUl = $();
 
+		// read tabindex from source element
+		var ti;
+		if (!options.tabindex && (ti = $originalInputs.eq(0).attr('tabindex'))) {
+			options.tabindex = ti;
+		}
+
 		/**
 		 * Init elements (auto called)
 		 * Creates the tageditinput from a list of textinputs
@@ -168,7 +175,12 @@
 			html += '</li>';
 			html += '</ul>';
 
-			$tageditListUl.append(html).find('.tagedit-input').each(function() { // Set function on the input
+			$tageditListUl
+				.append(html)
+				.attr('tabindex', options.tabindex) // set tabindex to <ul> to recieve focus
+				.find('.tagedit-input')
+				.attr('tabindex', options.tabindex)
+				.each(function() { // Set function on the input
 				var that = this;
 				$(this).autoGrowInput({comfortZone: 15, minWidth: 15, maxWidth: 20000});
 
@@ -294,7 +306,9 @@
 							.focus();
 				}
 				return false;
-			});
+			})
+			// forward focus event (on tabbing through the form)
+			.focus(function(e){ $(this).click(); });
 		})();
 
 		/**
