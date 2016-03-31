@@ -178,6 +178,8 @@
 			$tageditListUl
 				.append(html)
 				.attr('tabindex', options.tabindex) // set tabindex to <ul> to recieve focus
+				// forward focus event (on tabbing through the form)
+				.focus(function(e){ $(this).click(); })
 				.find('.tagedit-input')
 				.attr('tabindex', options.tabindex)
 				.each(function() { // Set function on the input
@@ -306,9 +308,7 @@
 							.focus();
 				}
 				return false;
-			})
-			// forward focus event (on tabbing through the form)
-			.focus(function(e){ $(this).click(); });
+			});
 		})();
 
 		/**
