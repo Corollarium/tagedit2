@@ -293,13 +293,13 @@
 							}, 1);
 						}
 					}).on('blur', function() {
-						if(this.value.length == 0) {
-							// disable the field to prevent sending with the form
-							$(this).attr('disabled', 'disabled').addClass('tagedit-input-disabled');
-						}
-						else {
+						if(this.value.length !== 0) {
 							$(this).trigger('transformToTag');
 						}
+
+						// disable the input field where you type a new tag to prevent sending an empty value
+						// with the form
+						$(this).attr('disabled', 'disabled').addClass('tagedit-input-disabled');
 					});
 
 					if(options.autocompleteOptions.source != false) {
