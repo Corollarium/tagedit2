@@ -24,6 +24,7 @@
  *  allowEdit: true, // Switch on/off edit entries
  *  direction: 'ltr' // Sets the writing direction for Outputs and Inputs
  *  autocompleteOptions: {}, // Setting Options for the jquery UI Autocomplete (http://jqueryui.com/demos/autocomplete/)
+ *  cacheRequests: true, // if true the ajax requests will be cached locally
  *  breakKeyCodes: [ 13, 44 ], // Sets the characters to break on to parse the tags (defaults: return, comma)
  *  texts: { // some texts
  *      removeLinkTitle: 'Remove from list.',
@@ -80,6 +81,7 @@
 					});
 				}
 			},
+			cacheRequests: true,
 			breakKeyCodes: [ 13, 44 ],
 			texts: {
 				removeLinkTitle: 'Remove from list.',
@@ -110,6 +112,11 @@
 				// nothing
 			}
 		}, options || {});
+
+		var getCachedResult = function(tagName) {
+			return options.cacheRequests ?
+				(tagName in FOUND_TAGS ? FOUND_TAGS[tagName] : null) : null;
+		};
 
 		// no action if there are no elements
 		if(this.length == 0) {
@@ -302,8 +309,42 @@
 						$(this).attr('disabled', 'disabled').addClass('tagedit-input-disabled');
 					});
 
-					if(options.autocompleteOptions.source != false) {
-						$(this).autocomplete(options.autocompleteOptions);
+					if(options.autocompleteOptions.source) {
+						if (typeof options.autocompleteOptions.source === 'string') {
+							var sourceUrl = options.autocompleteOptions.source;
+							options.autocompleteOptions.source = function(request, response) {
+								var term = request.term;
+								if (getCachedResult(term) === false) {
+									response([]);
+								}
+								else {
+									$.ajax({
+										url: sourceUrl,
+										data: {
+											term: term
+										}
+									}).done(function (data) {
+										// Handle 'no match' indicated by [ "" ] response
+										if (!data.length || (data.length === 1 && data[0].length === 0)) {
+											FOUND_TAGS[term] = false;
+											response([]);
+										}
+										else {
+											data.forEach(function (obj) {
+												FOUND_TAGS[obj.value] = obj;
+											});
+											response(data);
+										}
+									});
+								}
+							};
+							$(this).autocomplete(options.autocompleteOptions);
+							// restore the url, this will be used latter
+							options.autocompleteOptions = sourceUrl;
+						}
+						else {
+							$(this).autocomplete(options.autocompleteOptions);
+						}
 					}
 				}).end().click(function(event) {
 				switch(event.target.tagName) {
@@ -441,8 +482,11 @@
 					});
 				}
 				else if (typeof options.autocompleteOptions.source === "string") {
-					var found = FOUND_TAGS[value];
-					if (found) {
+					var found = getCachedResult(value);
+					if (found === false) {
+						result = [];
+					}
+					else if (found) {
 						result = [{value: found.value, id: found.id}];
 					}
 					else {
